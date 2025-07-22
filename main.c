@@ -174,7 +174,7 @@ int is_bst_util(Tnode *root, int *last, int *ok) {
     return *ok;
 }
 
-// Check AVL balance; return height or -1 on unbalanced
+// Check AVL balance
 int is_balanced(Tnode *root) {
     if (!root) return 0;
     int lh = is_balanced(root->left);
@@ -185,7 +185,25 @@ int is_balanced(Tnode *root) {
     return (lh > rh ? lh : rh) + 1;
 }
 
-// build tree from operation file
+// Returns 1 iff every node’s left subtree ≤ key < all of its right subtree
+static int strict_bst(Tnode *root) {
+    if (!root) return 1;
+    // left‐subtree max must be ≤ root
+    if (root->left) {
+        Tnode *m = root->left;
+        while (m->right) m = m->right;
+        if (m->key > root->key) return 0;
+    }
+    // right‐subtree min must be > root
+    if (root->right) {
+        Tnode *m = root->right;
+        while (m->left) m = m->left;
+        if (m->key <= root->key) return 0;
+    }
+    return strict_bst(root->left) && strict_bst(root->right);
+}
+
+
 int build_from_file(const char *ops_path, const char *out_path) {
     // Open file, error if needed
     FILE *fin = fopen(ops_path, "rb");
@@ -216,7 +234,6 @@ int build_from_file(const char *ops_path, const char *out_path) {
     return 1;
 }
 
-// Read tree, check valid/BST/balance
 int evaluate_tree(const char *tree_path) {
     FILE *fin = fopen(tree_path, "rb");
     int valid = 1;
@@ -225,12 +242,13 @@ int evaluate_tree(const char *tree_path) {
     if (valid) root = read_preorder(fin, &valid);
     if (fin) fclose(fin);
 
+    // Check for valid bst and balance
     int bstCheck = 1;
-    int lastKey = HBT_MIN - 1;
+    if (valid) bstCheck = strict_bst(root);
 
-    if (valid) is_bst_util(root, &lastKey, &bstCheck);
     int balCheck = 1;
     if (valid) balCheck = (is_balanced(root) >= 0);
+
     free_tree(root);
     printf("%d,%d,%d\n", valid, bstCheck, balCheck);
     return valid ? EXIT_SUCCESS : EXIT_FAILURE;
